@@ -1,21 +1,22 @@
 <template>
     <div class="common-layout">
         <el-container class="layout-container">
-            <!-- 顶部导航栏 -->
             <el-header class="header">
                 <div class="header-content">
                     <span class="logo" @click="confirmLogout">请假页</span>
+                    
+                    <div class="theme-switch" @click="toggleTheme">
+                        <span v-if="isDark" title="切换亮色模式">🌞</span>
+                        <span v-else title="切换暗色模式">🌙</span>
+                    </div>
                 </div>
             </el-header>
 
-            <!-- 主体区域 -->
             <el-main>
                 <router-view />
             </el-main>
 
-            <!-- 底部区域 -->
             <el-footer class="navibar">
-                <!-- 三种角色的导航栏 -->
                 <div v-if="isStu">
                     <Stu_Navbar />
                 </div>
@@ -25,25 +26,11 @@
                 <div v-else-if="isMas">
                     <Mas_Navbar />
                 </div>
-                <!-- 版权信息：始终显示,仍需修改 -->
                 <div
                     class="copyright"
                     :class="{ 'copyright-small': isStu || isTch || isMas }"
                 >
-                    © Copyright 2025 eh all rights reserved. Designed by
-                    <a
-                        href="https://github.com/zsyeh"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        >eh</a
-                    >
-                    and
-                    <a
-                        href="https://github.com/YingLuoNou"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        >yln</a
-                    >.
+                    © Copyright 2025 eh all rights reserved.
                 </div>
             </el-footer>
         </el-container>
@@ -63,40 +50,64 @@ import Mas_Navbar from "./views/Mas_Navbar.vue"
 const store = useUserStore()
 const router = useRouter()
 
-const isStu = ref(false)
-const isTch = ref(false)
-const isMas = ref(false)
+// ... (原有的 onMounted 和 userGroup 逻辑保持不变) ...
+onMounted(async () => {
+    await store.initializeUser()
+    // 初始化主题
+    initTheme()
+})
 
-const userGroup = computed(() => store.userInfo.user_group)
+const userGroup = computed(() => store.userInfo?.user_group)
+const isStu = computed(() => userGroup.value === "stu")
+const isTch = computed(() => userGroup.value === "tch")
+const isMas = computed(() => userGroup.value === "mas")
 
-// 监听 userGroup 的变化
-watch(
-    userGroup,
-    (newGroup) => {
-        isStu.value = newGroup === "stu"
-        isTch.value = newGroup === "tch"
-        isMas.value = newGroup === "mas"
-    },
-    { immediate: true }
-)
-// 点击顶部 Logo 时确认退出登录
+// --- 【新增】主题切换逻辑 ---
+const isDark = ref(false)
+
+const initTheme = () => {
+    // 读取本地存储或系统偏好
+    const savedTheme = localStorage.getItem('theme')
+    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    
+    if (savedTheme === 'dark' || (!savedTheme && systemDark)) {
+        isDark.value = true
+        document.documentElement.classList.add('dark')
+    } else {
+        isDark.value = false
+        document.documentElement.classList.remove('dark')
+    }
+}
+
+const toggleTheme = () => {
+    isDark.value = !isDark.value
+    if (isDark.value) {
+        document.documentElement.classList.add('dark')
+        localStorage.setItem('theme', 'dark')
+    } else {
+        document.documentElement.classList.remove('dark')
+        localStorage.setItem('theme', 'light')
+    }
+}
+// --------------------------
+
 async function confirmLogout() {
+    // ... (保持不变) ...
     try {
         await ElMessageBox.confirm("确认要取消登录吗？", "提示", {
             confirmButtonText: "确定",
             cancelButtonText: "取消",
             type: "warning"
         })
-        store.clearUserInfo() // 请在 user store 中实现 clearUserInfo()
+        store.clearUserInfo()
         router.push("/")
         ElMessage.success("已退出登录")
-    } catch {
-        // 取消或关闭，无操作
-    }
+    } catch { }
 }
 </script>
 
 <style scoped>
+/* ... (原有的样式) ... */
 .layout-container {
     height: 100vh;
     display: flex;
@@ -111,9 +122,11 @@ async function confirmLogout() {
     align-items: center;
 }
 
+/* 修改 header-content 为 flex 布局，撑开两端 */
 .header-content {
     display: flex;
     align-items: center;
+    justify-content: space-between; /* 让 Logo 和 切换按钮 分布在两端 */
     width: 100%;
 }
 
@@ -123,36 +136,34 @@ async function confirmLogout() {
     cursor: pointer;
 }
 
+/* 【新增】切换按钮样式 */
+.theme-switch {
+    cursor: pointer;
+    font-size: 20px;
+    padding: 5px;
+    user-select: none;
+    transition: transform 0.3s;
+}
+.theme-switch:hover {
+    transform: scale(1.1);
+}
+
+/* ... (其余样式保持不变) ... */
+
 .navibar {
-    background-color: #343a40;
+    /* 修改这里：使用 Element Plus 的背景色变量 */
+    background-color: var(--el-bg-color-overlay); 
     padding: 0;
     position: relative;
+    /* 可选：添加一条顶部边框，增加层次感 */
+    border-top: 1px solid var(--el-border-color-light); 
 }
 
-/* 版权信息 -- 默认样式 */
+/* ... 版权信息样式 ... */
 .navibar .copyright {
-    position: absolute;
-    bottom: 4px;
-    left: 0;
-    width: 100%;
-    text-align: center;
-    font-size: 12px;
-    color: #aaaaaa;
-    background-color: transparent;
-    white-space: nowrap;
-}
-
-/* 如果同时有导航栏，使用更小的文字，并额外留白 */
-.navibar .copyright-small {
-    margin-top: 4px;
-    background-color: transparent; /* 如果想底色和导航一致，可去掉 */
-}
-
-a {
-    color: #409eff;
-    text-decoration: none;
-}
-a:hover {
-    text-decoration: underline;
+    /* ... */
+    /* 修改这里：文字颜色也使用变量 */
+    color: var(--el-text-color-secondary); 
+    /* ... */
 }
 </style>

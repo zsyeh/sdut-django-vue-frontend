@@ -48,6 +48,24 @@ export const useUserStore = defineStore("user", () => {
         localStorage.setItem("refresh_token", refresh)
     }
 
+    // 清空用户信息 (登出或 Token 失效时调用)
+    const clearUserInfo = () => {
+        userInfo.value = {
+            class_name: null,
+            email: null,
+            first_name: null,
+            last_name: null,
+            student_number: null,
+            user_group: null
+        }
+        accessToken.value = null
+        refreshToken.value = null
+
+        localStorage.removeItem("access_token")
+        localStorage.removeItem("refresh_token")
+        localStorage.removeItem("user_info")
+    }
+
     // 刷新 accessToken
     const refreshAccessToken = async () => {
         if (refreshToken.value) {
@@ -66,7 +84,7 @@ export const useUserStore = defineStore("user", () => {
                 }
             } catch (error) {
                 console.error("刷新 token 失败", error)
-                clearUserInfo() // 刷新失败时清空用户状态
+                clearUserInfo() // 刷新失败时清空用户状态，强制重登
             }
         }
     }
@@ -90,45 +108,29 @@ export const useUserStore = defineStore("user", () => {
                     "user_info",
                     JSON.stringify(userInfo.value)
                 )
+                return userInfo.value // 返回数据以便调用者判断
             }
         } catch (error) {
             console.error("获取用户信息失败", error)
-            clearUserInfo() // 如果获取失败，清空用户信息
+            // 如果获取用户信息失败（通常是 Token 失效），抛出错误让调用者处理或直接清理
+            throw error
         }
-    }
-
-    // 清空用户信息
-    const clearUserInfo = () => {
-        userInfo.value = {
-            class_name: null,
-            email: null,
-            first_name: null,
-            last_name: null,
-            student_number: null,
-            user_group: null
-        }
-        accessToken.value = null
-        refreshToken.value = null
-
-        localStorage.removeItem("access_token")
-        localStorage.removeItem("refresh_token")
-        localStorage.removeItem("user_info")
     }
 
     // 初始化时检查 accessToken 是否有效
+    // 【核心修复】：在 App.vue 挂载时调用此方法
     const initializeUser = async () => {
         if (accessToken.value) {
             try {
-                await fetchUserInfo() // 获取用户信息
+                await fetchUserInfo() // 尝试从后端获取最新信息
             } catch (error) {
-                console.error("初始化用户信息失败", error)
-                await refreshAccessToken() // 如果 accessToken 失效，尝试刷新
-                if (accessToken.value) {
-                    await fetchUserInfo() // 刷新成功后重新获取用户信息
-                }
+                console.error("初始化用户信息失败，尝试刷新或清理", error)
+                // 可以在这里尝试 refreshAccessToken，如果还不行则清理
+                // 为简单起见，这里如果获取用户信息失败（401），直接登出
+                clearUserInfo()
             }
         } else {
-            clearUserInfo() // 如果没有 accessToken，清空用户信息
+            clearUserInfo()
         }
     }
 

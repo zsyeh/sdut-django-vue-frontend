@@ -7,8 +7,11 @@
                 v-model="password"
                 type="password"
                 placeholder="请输入密码"
+                @keyup.enter="handleLogin"
             />
-            <el-button type="primary" @click="handleLogin">登录</el-button>
+            <el-button type="primary" @click="handleLogin" :loading="loading"
+                >登录</el-button
+            >
         </div>
     </el-card>
 </template>
@@ -25,45 +28,55 @@ export default defineComponent({
     setup() {
         const username = ref("")
         const password = ref("")
+        const loading = ref(false)
         const userStore = useUserStore()
         const router = useRouter()
 
         const handleLogin = async () => {
+            if (!username.value || !password.value) {
+                ElMessage.warning("请输入用户名和密码")
+                return
+            }
+
+            loading.value = true
             try {
-                // 只传相对路径，baseURL + prefix 已在 request.ts 里配置好
-                const data = await request.post("/token/", {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const data: any = await request.post("/token/", {
                     username: username.value,
                     password: password.value
                 })
-                //const data = response.data
+
                 if (data.access) {
-                    // 保存 tokens 到 Pinia
                     userStore.setTokens(data.access, data.refresh)
-                    // 拉取并保存用户信息
                     await userStore.fetchUserInfo()
                     ElMessage.success("登录成功！")
 
-                    // 根据用户组跳转
                     const group = userStore.userInfo.user_group
                     if (group === "stu") {
                         router.replace({ path: "/userinfo" })
                     } else if (group === "tch") {
                         router.replace({ path: "/tchinfo" })
+                    } else if (group === "mas") {
+                        router.replace({ path: "/approveleave_mas" })
                     } else {
                         router.replace({ path: "/" })
                     }
                 } else {
-                    ElMessage.error("获取 token 失败，请稍后再试。")
+                    ElMessage.error("登录失败：无法获取令牌")
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error("登录失败", err)
-                ElMessage.error("登录失败，请检查用户名或密码！")
+                const msg = err.response?.data?.detail || "登录失败，请检查用户名或密码！"
+                ElMessage.error(msg)
+            } finally {
+                loading.value = false
             }
         }
 
         return {
             username,
             password,
+            loading,
             handleLogin
         }
     }
@@ -75,27 +88,35 @@ export default defineComponent({
     max-width: 400px;
     margin: 100px auto;
     padding: 40px;
-    background-color: #fff;
+    /* 【修改】背景色使用变量，适应暗黑模式 */
+    background-color: var(--el-bg-color);
     border-radius: 8px;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    /* 【新增】可选：为了更柔和，去掉默认边框，或者使用变量边框 */
+    border: 1px solid var(--el-border-color-light);
 }
+
 .login-form {
     display: flex;
     flex-direction: column;
     align-items: center;
 }
+
 .login-form img {
     width: 50px;
     height: 50px;
     margin-bottom: 20px;
 }
+
 .el-input {
     width: 100%;
     margin-bottom: 15px;
 }
+
 .el-button {
     width: 100%;
 }
+
 @media (max-width: 480px) {
     .login-card {
         width: 90%;

@@ -2,27 +2,28 @@
 import axios from "axios"
 import type { InternalAxiosRequestConfig, AxiosResponse } from "axios"
 
-// 从环境变量中获取基础配置（Vite）
 const BASE_URL = import.meta.env.VITE_REQUEST_BASE_URL as string
 const BASE_PREFIX = import.meta.env.VITE_REQUEST_BASE_PREFIX as string
 const TIMEOUT = Number(import.meta.env.VITE_REQUEST_TIMEOUT) || 10000
 
-console.log("Request Config →", {
-    baseURL: BASE_URL,
-    prefix: BASE_PREFIX,
-    timeout: TIMEOUT
-})
+// 【新增】定义白名单，不需要携带 Token 的接口
+const WHITE_LIST = ["/token/"]
 
 const request = axios.create({
     baseURL: `${BASE_URL}${BASE_PREFIX}`,
     timeout: TIMEOUT
 })
 
-// 请求拦截器：自动带上 access token
+// 请求拦截器
 request.interceptors.request.use(
     (config: InternalAxiosRequestConfig) => {
         const token = localStorage.getItem("access_token")
-        if (token && config.headers) {
+        
+        // 【修改】核心逻辑：只有 Token 存在 且 请求 URL 不在白名单中，才添加 Authorization
+        // config.url 可能包含 undefined，所以要用 config.url || ""
+        const isWhitelisted = WHITE_LIST.some(url => config.url?.includes(url))
+
+        if (token && config.headers && !isWhitelisted) {
             config.headers.Authorization = `Bearer ${token}`
         }
         return config
@@ -32,15 +33,12 @@ request.interceptors.request.use(
     }
 )
 
-// 响应拦截器：直接返回 data，或抛出错误
+// 响应拦截器保持不变...
 request.interceptors.response.use(
     (response: AxiosResponse) => {
-        // 如果后端把真正数据包在 data 对象里，就返回 data.data，
-        // 否则返回 response.data 本身
         return (response.data && (response.data as any).data) ?? response.data
     },
     (error) => {
-        // 你可以在这里统一做错误弹框或跳转登录等逻辑
         return Promise.reject(error)
     }
 )
