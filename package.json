@@ -13,9 +13,11 @@
     "prepare": "husky install"
   },
   "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
     "axios": "^1.7.9",
     "crypto-js": "^4.2.0",
     "dayjs": "^1.11.13",
+    "echarts": "^6.0.0",
     "element-plus": "^2.9.0",
     "html2canvas": "^1.4.1",
     "pinia": "^2.1.4",

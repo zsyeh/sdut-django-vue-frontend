@@ -64,7 +64,12 @@ export const routes = [
         name: "LeaveVerify",
         component: LeaveVerify,
         props: true
-    }
+    },
+    {
+        path: "/statistics",
+        name: "statistics",
+        component: () => import("@/views/Statistics.vue")
+    },
 ]
 
 const router = createRouter({
